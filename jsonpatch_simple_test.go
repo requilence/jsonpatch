@@ -14,7 +14,20 @@ var simpleD = `{"a":100, "b":200, "c":"hello", "d":"foo"}`
 var simpleE = `{"a":100, "b":200}`
 var simplef = `{"a":100, "b":100, "d":"foo"}`
 var simpleG = `{"a":100, "b":null, "d":"foo"}`
+var simpleH = `{"a": ["id1","id2","id3"]}`
+var simpleI = `{"a": ["id1","id3"]}`
 var empty = `{}`
+
+func TestArrayRemove(t *testing.T) {
+	patch, e := CreatePatch([]byte(simpleH), []byte(simpleI))
+	assert.NoError(t, e)
+	assert.Equal(t, len(patch), 1, "they should be equal")
+	change := patch[0]
+
+	assert.Equal(t, change.Operation, "remove", "they should be equal")
+	assert.Equal(t, change.Path, "/a/?value", "they should be equal")
+	assert.Equal(t, change.Value, "id2", "they should be equal")
+}
 
 func TestOneNullReplace(t *testing.T) {
 	patch, e := CreatePatch([]byte(simplef), []byte(simpleG))

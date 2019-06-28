@@ -45,6 +45,12 @@ func (a ByPath) Len() int           { return len(a) }
 func (a ByPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByPath) Less(i, j int) bool { return a[i].Path < a[j].Path }
 
+type ByOperationAndPath []JsonPatchOperation
+var operationsPriority = map[string]int{"remove":0, "replace":1, "move":2, "copy":3, "add":4}
+func (a ByOperationAndPath) Len() int           { return len(a) }
+func (a ByOperationAndPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByOperationAndPath) Less(i, j int) bool { return operationsPriority[a[i].Operation] < operationsPriority[a[j].Operation] || a[i].Path < a[j].Path }
+
 func NewPatch(operation, path string, value interface{}) JsonPatchOperation {
 	return JsonPatchOperation{Operation: operation, Path: path, Value: value}
 }
@@ -170,11 +176,10 @@ func diff(a, b map[string]interface{}, path string, patch []JsonPatchOperation) 
 		}
 	}
 	// Now add all deleted values as nil
-	for key := range a {
+	for key, _ := range a {
 		_, found := b[key]
 		if !found {
 			p := makePath(path, key)
-
 			patch = append(patch, NewPatch("remove", p, nil))
 		}
 	}
@@ -199,18 +204,18 @@ func handleValues(av, bv interface{}, p string, patch []JsonPatchOperation) ([]J
 		if !ok {
 			// array replaced by non-array
 			patch = append(patch, NewPatch("replace", p, bv))
-		} else if len(at) != len(bt) {
+		} else /*if len(at) != len(bt)*/ {
 			// arrays are not the same length
 			patch = append(patch, compareArray(at, bt, p)...)
 
-		} else {
+		} /*else {
 			for i := range bt {
 				patch, err = handleValues(at[i], bt[i], makePath(p, i), patch)
 				if err != nil {
 					return nil, err
 				}
 			}
-		}
+		}*/
 	case nil:
 		switch bv.(type) {
 		case nil:
@@ -235,8 +240,16 @@ func compareArray(av, bv []interface{}, p string) []JsonPatchOperation {
 				break
 			}
 		}
+
 		if !found {
-			retval = append(retval, NewPatch("remove", makePath(p, i), nil))
+			var key interface{}
+			key = i
+			var value interface{}
+			if k, ok := v.(string); ok {
+				key = "?value"
+				value = k
+			}
+			retval = append(retval, NewPatch("remove", makePath(p, key), value))
 		}
 	}
 
